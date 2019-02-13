@@ -9,7 +9,7 @@ log using "$my_path\ReTrade\ReTrade2\Log\do-crReTrade2_0.log", replace
 /* creates Summary0.dta and PeriodSummary00.dta files */
 /* by Diego Aycinena */
 /* Created: 2017-02-13 */
-/* Last modified: 2017-09-13 */
+/* Last modified: 2018-09-12 */
 /* located in C:\...\Dropbox\Research\data\ReTrade\do */
 
 cd "$path_data"
@@ -33,7 +33,7 @@ local FileName "Summary_Data"
 foreach FileDate of global file_date_list {
 
 	local i=`i'+1		
-	insheet using `FileName'_`FileDate'.csv, clear
+	insheet using "$ServerData_path/`FileName'_`FileDate'.csv", clear
 	
 	**********************
 	**** Quiz summary ****
@@ -84,7 +84,7 @@ foreach FileDate of global file_date_list {
 	*	**** Experimental Results Data ****	  *
 	****	 *************************		***
 	
-	insheet using `FileName'_`FileDate'.csv, clear
+	insheet using "$ServerData_path/`FileName'_`FileDate'.csv", clear
 	
 	gen session=`i' 
 	order session, first
@@ -165,8 +165,12 @@ foreach FileDate of global file_date_list {
 	**************************
 	**** Pay & IP summary ****
 	**************************
-	if `i'!=10 {
-		insheet using `FileName'_`FileDate'.csv, clear
+	if `i'<10 {
+		if `i'==9 {
+			*set more on
+			di "Pay period #9 starting"
+			}
+		insheet using "$ServerData_path/`FileName'_`FileDate'.csv", clear
 		
 		*drop non-pay file data
 		drop if subperiod=="0" 
@@ -184,13 +188,33 @@ foreach FileDate of global file_date_list {
 		destring subject, replace
 		destring final_earnings, ignore($) replace
 		}
-	else {
-		insheet using s10pay.txt, clear
+	else if `i'==10{
+		insheet using "$ServerData_path/s10pay.txt", clear
 		
 		drop ipaddress 
 		gen str15 ip_address = ""
 		rename earnings final_earnings
 		rename id subject
+		destring final_earnings, ignore($) replace
+		}
+	else if `i'>10 {
+	set more off
+		insheet using "$ServerData_path/`FileName'_`FileDate'.csv", clear
+		
+		*drop non-pay file data
+		drop if subperiod=="0" 
+		drop if subperiod==""
+		drop if period=="Paid Periods" | period=="" | period=="Player"
+		gen x=real(subperiod)
+		keep if x==.
+		*drop x beginningiventory - step2endinventory
+		rename subject ip_address
+		rename period subject
+		rename subperiod name
+		rename day final_earnings
+		drop if subject=="ID"
+		keep subject name final_earnings ip_address
+		destring subject, replace
 		destring final_earnings, ignore($) replace
 		}
 
@@ -222,7 +246,7 @@ foreach FileDate of global file_date_list {
 local j=0 
 foreach Fname of global quest_file_list {
 	local j=`j'+1		
-	insheet using `Fname'_ESI.csv, clear
+	insheet using "$ServerData_path/`Fname'_ESI.csv", clear
 	gen session=`j'
 	order session, first
 	capture destring chapmanid, force replace
@@ -245,6 +269,7 @@ foreach Fname of global quest_file_list {
 	sort session subject
 	save, replace
 }
+replace subject=subject+1 if session==17 //subject #1 left before completing the ESI Psych Survey in session 17
 
 *gen unique subject identifier
 gen id = session*100+subject
@@ -268,22 +293,33 @@ isid id_pay
 gen FullName=strproper(fullname)
 gen Name=strproper(name)
 
-browse FullName Name max_score id id_pay if FullName!=Name & id!=610 & id!=1207  
-
-assert FullName==Name if id!=610 & id!=1207   //ensure names match in both data sets, except for two case detected and corroborated (girl in session 6 who used only first name in one DB, but full name in the other; and person in session 12 who included nickname in parenthesis in on DB)
+assert FullName==Name if id!=610 & id!=1207 & id!=1509  //ensure names match in both data sets, except for three case detected and corroborated (person in session 6 who used only first name in one DB, but full name in the other; person in session 12 who included nickname in parenthesis in on DB; and person on session 15 who used shortened name in one DB)
 sort id_pay
 merge 1:1 id_pay using pay0.dta
-assert _merge==3
-drop id_pay similscore FullName fullname Name _merge
+
+
+replace fullname=name if id==. & session==17 & fullname=="" //subject left before completing the ESI Psych Survey in session 17
+
+assert _merge==3 if id_pay!=1701 //ensure full match except for one subject who left before completing the ESI Psych Survey in session 17
+replace id=id_pay if id==. & _merge==2 & session==17 & FullName=="" 
+	
+drop _merge
 sort id
 save pay0, replace
 
 use Quest0, clear
 merge 1:1  id using pay0 //merge survey data with pay data
-assert _merge==3
+assert _merge==3 if id_pay!=1701 //ensure full match except for one subject who left before completing the ESI Psych Survey in session 17
+
+replace female=1 if _merge==2 & session==17 & FullName==""
+replace fullname=name if _merge==2 & session==17 & fullname=="" //subject left before completing the ESI Psych Survey in session 17
+
+drop similscore FullName Name 
 gen FullName=strproper(fullname)
 gen Name=strproper(name)
-assert FullName==Name if id!=610 & id!=1207 //ensure names match in both data sets, except for the one case detected and corroborated (girl in session 6 who used only first name in one DB, but full name in the other)
+
+*browse FullName Name max_score id id_pay if FullName!=Name & id!=610 & id!=1207 & id!=1509 
+assert FullName==Name if id!=610 & id!=1207 & id!=1509  //ensure names match in both data sets, except for three case detected and corroborated (person in session 6 who used only first name in one DB, but full name in the other; person in session 12 who included nickname in parenthesis in on DB; and person on session 15 who used shortened name in one DB)
 
 drop FullName fullname Name name chapmanid _merge //drop all variables personal identifiable info from data
 order ip_address, last
@@ -317,6 +353,9 @@ assert _merge==3
 drop _merge
 
 compress
+
+//Drop data from session 3 (problems with client software, see log)
+drop if session==3 
 
 save SocioDemo.dta, replace 
 
@@ -360,6 +399,9 @@ order id session treatment period, first
 sort session subject period
 
 compress
+
+//Drop data from session 3 (problems with client software, see log)
+drop if session==3 & session_datetime=="5-15-2017_11_31_41"
 
 merge m:1 session subject using SocioDemo.dta
 
@@ -411,6 +453,9 @@ lab var price_last "Last Price (period)"
 order treatment upda cda period price_avg price_last, after(session)
 
 compress
+
+//Drop data from session 3 (problems with client software, see log)
+drop if session==3 & session_datetime=="5-15-2017_11_31_41"
 
 saveold PeriodSummary00, version(11) replace
 

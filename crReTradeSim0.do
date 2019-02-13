@@ -19,7 +19,7 @@ local i=0
 local y=0
 tempfile rawfile
 tempfile sfile
-local sim_t "zia nzia"
+local sim_t "zia mia"
 
 //////////////////////////////
 *** Read Summary Data file ***
@@ -32,9 +32,9 @@ local FileName "Summary_Data"
 		* Quiz answers (Player	Question	Answer)
 		* Payment file (Player	Name	Earnings	IP Address)
 
-foreach sim_treat of local sim_t { // run separately for ZIA and non-ZIA
+foreach sim_treat of local sim_t { // run separately for ZIA and MIA
 
-	cd "$path_data/simulations/`sim_treat'"	
+	cd "$path_RawSimData/`sim_treat'"	
 	local j=0
 	
 	foreach FileDate of global `sim_treat'_f_date_list {
@@ -46,12 +46,14 @@ foreach sim_treat of local sim_t { // run separately for ZIA and non-ZIA
 	****	 *************************		***
 	*	**** Experimental Results Data ****	  *
 	****	 *************************		***
-		gen sim_treatment = `y' // 0=zia, 1=nzia
+		gen sim_treatment = `y' // 0=zia, 1=mia
 		gen sim_run = (`y'*1000)+`j'
 		gen session=77000+`i' 
 		order sim_run sim_treatment, first
 	
 		gen simrun_datetime = "`FileDate'"
+		gen  dtime=clock(simrun_datetime, "MDYhms")
+		format dtime %tcDay_Mon_DD_HH:MM:SS_CCYY
 	
 		*drop extra variable created for emply column 
 		capture drop v23 
@@ -63,7 +65,7 @@ foreach sim_treat of local sim_t { // run separately for ZIA and non-ZIA
 	****************************************
 	
 		*drop lines that contain subject name, number, ip and earnings
-		keep if subperiod=="0"
+		keep if subperiod=="0" // 
 		capture drop if period==" " | period=="Name" | period=="ID"
 		capture drop if beginningiventory==. & endinginventory==. & changeininventory==. & startingcash==.
 		
@@ -147,13 +149,17 @@ foreach sim_treat of local sim_t { // run separately for ZIA and non-ZIA
 		destring final_earnings, ignore($) replace
 		
 		
-		gen sim_treatment = `y' // 0=zia, 1=nzia
+		gen sim_treatment = `y' // 0=zia, 1=mia
 		gen sim_run = (`y'*1000)+`j'
 		gen session=77000+`i' 
 		order sim_run sim_treatment, first
 	
+		display "`FileDate' `sim_t'"
+	
 		gen simrun_datetime = "`FileDate'"
-		
+		gen  dtime=clock(simrun_datetime, "MDYhms")
+		capture format dtime %tcDay_Mon_DD_HH:MM:SS_CCYY
+
 		compress
 		save `sfile', replace
 	
@@ -168,6 +174,7 @@ foreach sim_treat of local sim_t { // run separately for ZIA and non-ZIA
 		}	
 		sort session subject
 		save, replace
+
 	}
 	
 	local y=`y'+1
@@ -205,8 +212,8 @@ replace treatment=1 if averageprice!=.
 replace treatment=2 if marketprice!=.
 assert treatment!=.
 
-lab var sim_treatment "Simulation treatment (0=ZIA, 1=non-ZIA)"
-lab def sim_treat 0 "ZIA" 1 "non-ZIA"
+lab var sim_treatment "Simulation treatment (0=ZIA, 1=MIA)"
+lab def sim_treat 0 "ZIA" 1 "MIA"
 lab val sim_treat sim_treat
 
 lab var treatment "Treatment (1=CDA, 2=UPDA)"
@@ -223,8 +230,8 @@ gen zia=1-sim_treat
 replace zia=1 if sim_treat==0
 lab var zia "ZIA"
 
-gen nzia=sim_treat
-lab var nzia "non-ZIA"
+gen mia=sim_treat
+lab var mia "MIA"
 
 *gen unique subject identifier
 gen id = session*100+subject

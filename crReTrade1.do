@@ -8,7 +8,7 @@ log using "$my_path\ReTrade\ReTrade2\Log\do-crReTrade2_1.log", replace
 /* Generates individual action level (bids, asks, trades, etc.) data */
 /* by Diego Aycinena */
 /* Created: 2017-06-07 */
-/* Last modified: 2017-06-16 */
+/* Last modified: 2017-09-12 */
 /* located in C:\...\Dropbox\Research\data\ReTrade\do */
 
 
@@ -25,7 +25,7 @@ tempfile sfile
 
 local FileName "Action_Data"	// Action data file contains records for all individual and market actions (bids actions, asks actions, trades, etc.) in a session
 foreach FileDate of global file_date_list {
-	insheet using `FileName'_`FileDate'.csv, clear
+	insheet using "$ServerData_path/`FileName'_`FileDate'.csv", clear
 	local i=`i'+1
 	
 	gen session=`i' 
@@ -114,6 +114,10 @@ egen totalOffers=count(offerid) if actiontype==3 & automatic==0, by(session peri
 lab var totalOffers "Total period Offers"
  
 compress
+
+//Drop data from session 3 (problems with client software, see log)
+drop if session==3 & session_datetime=="5-15-2017_11_31_41"
+
 save Action0, replace
 drop bidqueue offerqueue trades tentativebids tentativeoffers openoffers
 saveold Action_old_11, version(11) replace

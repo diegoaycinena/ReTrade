@@ -19,7 +19,7 @@ local i=0
 local y=0
 tempfile sfile
 tempfile tfile
-local sim_t "zia nzia"
+local sim_t "zia mia"
 
 //////////////////////////////////
 *** Read Parameters Data file ***
@@ -27,7 +27,7 @@ local sim_t "zia nzia"
 
 local FileName "Parameters_Data"	// Action data file contains records for all individual and market actions (bids actions, asks actions, trades, etc.) in a session
 
-foreach sim_treat of local sim_t { // run separately for ZIA and non-ZIA
+foreach sim_treat of local sim_t { // run separately for ZIA and MIA
 
 	cd "$path_data/simulations/`sim_treat'"	
 	local j=0
@@ -59,12 +59,14 @@ foreach sim_treat of local sim_t { // run separately for ZIA and non-ZIA
 		sxpose, clear force destring firstnames //transpose
 		drop gameName port instructionX instructionY windowX windowY graphMin graphMax graphQuantity
 		
-		gen sim_treatment = `y' // 0=zia, 1=nzia
+		gen sim_treatment = `y' // 0=zia, 1=mia
 		gen sim_run = (`y'*1000)+`j'
 		gen session=77000+`i' 
 		order sim_run sim_treatment, first
 	
 		gen simrun_datetime = "`FileDate'"
+		gen  dtime=clock(simrun_datetime, "MDYhms")
+		format dtime %tcDay_Mon_DD_HH:MM:SS_CCYY
 		
 		compress 
 		save `sfile', replace
@@ -101,7 +103,7 @@ foreach sim_treat of local sim_t { // run separately for ZIA and non-ZIA
 		drop v1 row npos1 npos2 
 		drop if period>`n_p'
 		
-		gen sim_treatment = `y' // 0=zia, 1=nzia
+		gen sim_treatment = `y' // 0=zia, 1=mia
 		gen sim_run = (`y'*1000)+`j'
 		gen session=77000+`i' 
 		order sim_run sim_treatment, first
@@ -175,8 +177,8 @@ drop maxP
 assert _merge==3
 drop _merge
 
-lab var sim_treat "Simulation treatment (0=ZIA, 1=non-ZIA)"
-lab def sim_treat 0 "ZIA" 1 "non-ZIA"
+lab var sim_treat "Simulation treatment (0=ZIA, 1=MIA)"
+lab def sim_treat 0 "ZIA" 1 "MIA"
 lab val sim_treat sim_treat
 lab var sim_run "Simulation run #"
 

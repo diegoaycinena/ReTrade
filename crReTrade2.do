@@ -21,7 +21,7 @@ egen TotVol=total(volume), by(session period)
 gen wPavg=averageprice*volume/TotVol
 gen wPmkt=marketprice*volume/TotVol
 
-/*
+
 gen price_avg=averageprice if cda==1
 replace price_avg=marketprice if upda==1
 tab treat period, sum(price_avg)
@@ -29,7 +29,7 @@ tab treat period, sum(price_avg)
 gen price_last=endingprice if cda==1
 replace price_last=marketprice if upda==1
 tab treat period, sum(price_last)
-*/
+
 
 collapse treatment averageprice marketprice  TotVol cda upda (sum) wPavg wPmkt volume TotEarnings=earnings, by(session period)
 assert TotVol==volume
@@ -53,7 +53,8 @@ save `tfile'
 use PeriodSummary00.dta, clear
 sort session period
 
-*price likely registered in wrong column (earnings) for UPDA
+*price registered in wrong column (earnings) for UPDA
+replace marketprice=earnings if upda==1
 replace price_avg=earnings if upda==1
 replace price_last=earnings if upda==1
 
@@ -76,12 +77,16 @@ gen abs_dev = abs(wPavg-averageprice)
 assert abs_dev<.1 if abs_dev!=.
 drop wPavg abs_dev
 
-*price likely registered in wrong column (earnings) for UPDA
+*price registered in wrong column (earnings) for UPDA
 gen mpriceabsdif=abs(wPmkt-earnings) if upda==1 //gen absolute value of differennce
 assert mpriceabsdif<0.01 if upda==1 //assert that difference is arbitrarily small 
 
-replace marketprice=wPmkt if upda==1
+*replace marketprice=wPmkt if upda==1
 drop wPmkt mpriceabsdif
+
+*price registered in wrong column (earnings) for UPDA [manually checked in addition to check above]
+replace marketprice=earnings if upda==1
+
 assert price_avg==marketprice if upda==1
 
 replace price_avg = marketprice if upda==1
@@ -121,7 +126,7 @@ lab var totalAction "Total period bids + asks"
 sort session period
 save `sfile'.dta, replace
 
-use PeriodSummary00.dta, clear
+use PeriodSummary0.dta, clear
 sort session period
 merge 1:1 session period using `sfile'.dta
 

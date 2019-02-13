@@ -83,7 +83,16 @@ qui: do "$path_do\crReTrade3.do"
 */
 
 	/// Simmulations ///
-qui: do "$path_do\crReTradeSim0.do" 
+qui: do "$path_do\crReTradeSimRegistry.do" 
+/*	crReTradeSimRegistry.do
+	*****************
+	Summary:	Generates Registry of (wave 2) SIMULATIONS database
+	Inputs:		RegistroSimulations.txt
+				
+	Output:		SimRegistry.dta
+*/
+	
+	qui: do "$path_do\crReTradeSim0.do" 
 /*	crReTradeSim0.do
 	*****************
 	Summary:	Generates Stata files with master simmulation datasets for (aggregate) subject level and period level data from the individual from the individual Summary_Data_date-time simmulation ("experimental tests") results files

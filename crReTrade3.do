@@ -9,7 +9,7 @@ log using "$my_path\ReTrade\ReTrade2\Log\do-crReTrade2_3.log", replace
 /* creates Params0.dta file and merges to create Summary.dta and PeriodSummary.dta */
 /* by Diego Aycinena */
 /* Created: 2017-06-16 */
-/* Last modified: 2017-06-16 */
+/* Last modified: 2017-09-12 */
 /* located in C:\...\Dropbox\Research\data\ReTrade\do */
 
 clear
@@ -31,7 +31,7 @@ local FileName "Parameters_Data"	// Parameters data file contains the global and
 
 foreach FileDate of global file_date_list {
 	local i=`i'+1			
-	insheet using `FileName'_`FileDate'.csv, clear
+	insheet using "$ServerData_path/`FileName'_`FileDate'.csv", clear
 	gen row = _n
 		
 	save `tfile'.dta, replace
@@ -130,12 +130,11 @@ use PeriodTime0.dta, clear
 
 merge m:1 session using GameSetup0.dta  //merge to create Params0.dta
 
-assert _merge==3
+assert _merge==3 if session!=13 & period!=. & time!=. //Parameter file for period 13 was missing, so a reconstructed synthetic file is used for the main (Game setup) parameters only
+assert _merge==2 if session==13 & period==. & time==.
 drop _merge
 
 drop if period>numberOfPeriods  //drop period specific parameters for periods beyond the number of periods that the experiment ran for
-
-compress
 
 lab var time "Period duration (seconds)"
 lab var numberOfPlayers "Number of traders"
@@ -149,6 +148,11 @@ rename time time_period
 
 order session period time_period numberOfPlayers numberOfPeriods testMode marketType practicePeriods paidPeriodCount session_datetime, first 
 
+compress
+
+//Drop data from session 3 (problems with client software, see log)
+drop if session==3 & session_datetime=="5-15-2017_11_31_41"
+
 save Params0.dta, replace  // Params0.dta data set
 
 use PeriodSummary0.dta, clear //prepare to merge with Period Summary data
@@ -158,13 +162,15 @@ egen maxP=max(period), by(session)
 
 merge 1:1 session period using Params0.dta  //merge
 
-assert maxP==numberOfPeriods
+assert maxP==numberOfPeriods if (session!=13 & numberOfPeriods!=.)
+replace numberOfPeriods=maxP if numberOfPeriods==. & session==13
 drop maxP
 
-assert _merge==3
+assert _merge==3 if (session!=13 & numberOfPeriods!=.)
 drop _merge
 
 *renumber periods so that the 2 practice periods are coded as negative
+replace practicePeriods=2 if session==13
 replace period=period-practicePeriods if practicePeriods>=0 & practicePeriods!=.
 replace period=period-1 if period<1 & practicePeriods>0 & practicePeriods!=.
 
@@ -180,10 +186,11 @@ egen maxP=max(period), by(session)
 
 merge m:1 session period using Params0.dta  //merge
 
-assert _merge==3
+assert _merge==3 if (session!=13 & numberOfPeriods!=.)
 drop _merge
 
-assert maxP==numberOfPeriods
+assert maxP==numberOfPeriods if (session!=13 & numberOfPeriods!=.)
+replace numberOfPeriods=maxP if numberOfPeriods==. & session==13
 drop maxP
 
 *renumber periods so that the 2 practice periods are coded as negative
